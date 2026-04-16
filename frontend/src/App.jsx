@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -25,6 +26,16 @@ import AdminAppointments from './pages/admin/AdminAppointments';
 
 function AppRoutes() {
   const { user, profile, loading } = useAuth();
+  const location = useLocation();
+
+  useEffect(() => {
+    document.body.className = '';
+    if (location.pathname.startsWith('/admin')) {
+      document.body.classList.add('bg-admin');
+    } else if (location.pathname.startsWith('/doctor')) {
+      document.body.classList.add('bg-doctor');
+    }
+  }, [location.pathname]);
 
   if (loading) {
     return (

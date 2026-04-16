@@ -3,8 +3,7 @@ import { supabase } from '../../lib/supabase';
 import Navbar from '../../components/Navbar';
 import { QRCodeSVG } from 'qrcode.react';
 import { FiPlus, FiEdit2, FiTrash2, FiX, FiDownload, FiPrinter } from 'react-icons/fi';
-
-const DEPARTMENT_ICONS = ['🏥', '❤️', '🧠', '🦴', '👁️', '👶', '🦷', '💉', '🔬', '🫁', '🩺', '🧬'];
+import { getDeptIcon } from '../../utils/iconMap';
 
 export default function AdminDepartments() {
   const [departments, setDepartments] = useState([]);
@@ -128,7 +127,10 @@ export default function AdminDepartments() {
         <body style="display:flex;justify-content:center;align-items:center;height:100vh;margin:0;">
           <div style="text-align:center;font-family:sans-serif;">
             ${svg.outerHTML}
-            <h1 style="margin-top:20px;">${qrDept.icon} ${qrDept.name}</h1>
+            <div style={{ display: 'flex', justifyContent: 'center', fontSize: '32px', marginBottom: '10px' }}>
+              ${getDeptIcon(qrDept.name, 32)}
+            </div>
+            <h1 style="margin-top:10px;">${qrDept.name}</h1>
             <p>Scan this to book an appointment</p>
           </div>
         </body>
@@ -161,7 +163,7 @@ export default function AdminDepartments() {
             <div className="loading-spinner"><div className="spinner"></div></div>
           ) : departments.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon">🏥</div>
+              <div className="empty-icon"><img src="/logo.png" width="48" style={{opacity:0.5}}/></div>
               <h3>No Departments</h3>
               <p>Click "Add Department" to create your first department.</p>
             </div>
@@ -180,7 +182,7 @@ export default function AdminDepartments() {
                 <tbody>
                   {departments.map((dept) => (
                     <tr key={dept.id}>
-                      <td style={{ fontSize: '1.5rem' }}>{dept.icon}</td>
+                      <td style={{ color: 'var(--primary)' }}>{getDeptIcon(dept.name, 24)}</td>
                       <td style={{ fontWeight: 600 }}>{dept.name}</td>
                       <td style={{ color: 'var(--text-secondary)', maxWidth: '300px' }}>
                         {dept.description || '—'}
@@ -213,7 +215,9 @@ export default function AdminDepartments() {
           {/* QR Code Display */}
           {qrDept && (
             <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-              <h3 style={{ marginBottom: '1rem' }}>{qrDept.icon} {qrDept.name} — Department QR Code</h3>
+              <h3 style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{color: 'var(--primary)', display: 'flex'}}>{getDeptIcon(qrDept.name, 24)}</span> {qrDept.name} — Department QR Code
+              </h3>
               <div className="qr-container" style={{ margin: '0 auto' }}>
                 <QRCodeSVG
                   id={`qr-code-${qrDept.id}`}
@@ -275,29 +279,7 @@ export default function AdminDepartments() {
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Icon</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  {DEPARTMENT_ICONS.map((icon) => (
-                    <button
-                      key={icon}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, icon })}
-                      style={{
-                        width: 40, height: 40, fontSize: '1.2rem',
-                        border: formData.icon === icon ? '2px solid var(--primary)' : '1px solid var(--border)',
-                        borderRadius: 'var(--radius-sm)',
-                        background: formData.icon === icon ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-card)',
-                        cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {icon}
-                    </button>
-                  ))}
-                </div>
-              </div>
+
 
               <div className="modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>

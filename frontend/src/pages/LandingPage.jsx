@@ -11,21 +11,16 @@ export default function LandingPage() {
         alignItems: 'center', justifyContent: 'center',
         textAlign: 'center', padding: '2rem',
         background: `
-          radial-gradient(ellipse at 30% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
-          radial-gradient(ellipse at 70% 80%, rgba(6, 182, 212, 0.1) 0%, transparent 50%),
-          var(--bg-primary)
+          linear-gradient(rgba(15, 15, 26, 0.8), rgba(15, 15, 26, 0.95)),
+          url('/hospital-bg.png') center/cover no-repeat fixed
         `,
       }}>
         <div style={{
-          width: 72, height: 72,
-          background: 'linear-gradient(135deg, var(--primary), var(--accent))',
-          borderRadius: 'var(--radius-lg)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '2rem', marginBottom: '1.5rem',
-          boxShadow: '0 0 40px var(--primary-glow)',
+          width: 80, height: 80,
+          marginBottom: '1.5rem',
           animation: 'slideUp 0.5s ease',
         }}>
-          🏥
+          <img src="/logo.png" alt="MediQueue Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         </div>
 
         <h1 style={{

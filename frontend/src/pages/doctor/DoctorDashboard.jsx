@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Navbar';
 import { FiUser, FiCheck, FiPlay, FiClock, FiActivity, FiUsers } from 'react-icons/fi';
+import { getDeptIcon } from '../../utils/iconMap';
 
 export default function DoctorDashboard() {
   const { profile } = useAuth();
@@ -206,7 +207,12 @@ export default function DoctorDashboard() {
         <div className="container">
           <div className="page-header">
             <h1>Doctor Dashboard</h1>
-            <p>{doctorRecord.department?.icon} {doctorRecord.department?.name} — {doctorRecord.specialization || 'General'}</p>
+            <p style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
+              <span style={{ color: 'var(--primary)', display: 'flex' }}>
+                {getDeptIcon(doctorRecord.department?.name, 20)}
+              </span>
+              {doctorRecord.department?.name} — {doctorRecord.specialization || 'General'}
+            </p>
           </div>
 
           {/* Stats */}

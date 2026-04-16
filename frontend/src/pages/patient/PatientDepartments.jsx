@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import Navbar from '../../components/Navbar';
 import { FiUsers, FiActivity, FiX, FiCamera } from 'react-icons/fi';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import { getDeptIcon } from '../../utils/iconMap';
 
 export default function PatientDepartments() {
   const [departments, setDepartments] = useState([]);
@@ -89,7 +90,7 @@ export default function PatientDepartments() {
             <div className="loading-spinner"><div className="spinner"></div></div>
           ) : departments.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon">🏥</div>
+              <div className="empty-icon"><img src="/logo.png" width="48" style={{opacity:0.5}}/></div>
               <h3>No Departments Available</h3>
               <p>Departments will appear here once they are added by the admin.</p>
             </div>
@@ -102,7 +103,7 @@ export default function PatientDepartments() {
                   onClick={() => startScanner(dept)}
                   style={{ animationDelay: `${index * 0.05}s`, animation: 'slideUp 0.4s ease forwards' }}
                 >
-                  <div className="dept-icon">{dept.icon || '🏥'}</div>
+                  <div className="dept-icon" style={{color: 'var(--primary)'}}>{getDeptIcon(dept.name, 40)}</div>
                   <h3>{dept.name}</h3>
                   <p>{dept.description || 'Click to view available doctors'}</p>
                   <div style={{

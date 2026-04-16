@@ -41,7 +41,9 @@ export default function LoginPage() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-header">
-          <div className="auth-logo">🏥</div>
+          <div className="auth-logo" style={{ background: 'transparent', boxShadow: 'none' }}>
+            <img src="/logo.png" alt="logo" style={{width: '100%', height: '100%', objectFit: 'contain'}} />
+          </div>
           <h1>Welcome Back</h1>
           <p>Sign in to MediQueue Hospital System</p>
         </div>

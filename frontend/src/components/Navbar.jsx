@@ -36,7 +36,7 @@ export default function Navbar() {
   return (
     <nav className="navbar">
       <Link to={`/${profile.role}`} className="navbar-brand">
-        <span className="logo-icon">🏥</span>
+        <img src="/logo.png" alt="logo" style={{width: 32, height: 32, marginRight: '0.5rem', objectFit: 'contain'}} />
         <span>MediQueue</span>
       </Link>
 
