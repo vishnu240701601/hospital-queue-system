@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="MediQueue - Smart Hospital Queue Management System. Book appointments, track queues in real-time, and streamline hospital operations." />
+    <title>MediQueue — Hospital Queue Management</title>
+  </head>
+  <body>
+    <script>
+      window.onerror = function(message, source, lineno, colno, error) {
+        document.body.innerHTML = '<div style="padding: 20px; font-family: monospace; background: #ffebee; color: #c62828;">' +
+          '<h2>Application Crash:</h2><p><strong>Message:</strong> ' + message + '</p>' +
+          '<p><strong>File:</strong> ' + source + ' (Line ' + lineno + ')</p>' +
+          '</div>';
+      };
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
