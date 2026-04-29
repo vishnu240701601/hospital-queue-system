@@ -300,3 +300,54 @@ BEGIN
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =============================================
+-- Function: Atomic Appointment Booking
+-- Prevents race conditions when two patients book exactly at the same time
+-- =============================================
+CREATE OR REPLACE FUNCTION book_appointment(
+  p_patient_id UUID,
+  p_doctor_id UUID,
+  p_department_id UUID,
+  p_patient_lat DOUBLE PRECISION DEFAULT NULL,
+  p_patient_lng DOUBLE PRECISION DEFAULT NULL,
+  p_location_tracking BOOLEAN DEFAULT false
+)
+RETURNS SETOF appointments AS $$
+DECLARE
+  v_queue_number INT;
+BEGIN
+  -- Get the next queue number by counting existing waiting/in-progress
+  SELECT COUNT(*) + 1 INTO v_queue_number
+  FROM appointments
+  WHERE doctor_id = p_doctor_id
+    AND status IN ('waiting', 'in-progress')
+    AND DATE(created_at) = CURRENT_DATE;
+
+  -- Insert and return the newly created appointment
+  RETURN QUERY INSERT INTO appointments (
+    patient_id, 
+    doctor_id, 
+    department_id, 
+    status, 
+    queue_number, 
+    patient_lat, 
+    patient_lng, 
+    location_tracking, 
+    created_at,
+    updated_at
+  ) VALUES (
+    p_patient_id, 
+    p_doctor_id, 
+    p_department_id, 
+    'waiting', 
+    v_queue_number, 
+    p_patient_lat, 
+    p_patient_lng, 
+    p_location_tracking, 
+    now(),
+    now()
+  )
+  RETURNING *;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -125,26 +125,16 @@ export default function DoctorSelection() {
         return;
       }
 
-      // Get next queue number
-      const { data: queueData } = await supabase
-        .rpc('get_next_queue_number', { p_doctor_id: doctor.id });
-
-      const queueNumber = queueData || 1;
-
-      // Create appointment with GPS coordinates
+      // Create appointment atomically with GPS coordinates
       const { data, error } = await supabase
-        .from('appointments')
-        .insert({
-          patient_id: profile.id,
-          doctor_id: doctor.id,
-          department_id: departmentId,
-          status: 'waiting',
-          queue_number: queueNumber,
-          patient_lat: patientLocation.lat,
-          patient_lng: patientLocation.lng,
-          location_tracking: true,
-        })
-        .select();
+        .rpc('book_appointment', {
+          p_patient_id: profile.id,
+          p_doctor_id: doctor.id,
+          p_department_id: departmentId,
+          p_patient_lat: patientLocation.lat,
+          p_patient_lng: patientLocation.lng,
+          p_location_tracking: true
+        });
 
       if (error) throw error;
 
