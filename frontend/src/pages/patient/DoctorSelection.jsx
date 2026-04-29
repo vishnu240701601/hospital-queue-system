@@ -69,14 +69,40 @@ export default function DoctorSelection() {
 
       if (error) throw error;
       
+      // Fetch patient's active appointments
+      const today = new Date().toISOString().split('T')[0];
+      const { data: myAppts } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('patient_id', profile.id)
+        .in('status', ['waiting', 'in-progress'])
+        .gte('created_at', today);
+
       const docsWithCounts = await Promise.all((docs || []).map(async (doc) => {
-        const { count } = await supabase
+        const { data: allAppts } = await supabase
           .from('appointments')
-          .select('id', { count: 'exact', head: true })
+          .select('id, queue_number, status')
           .eq('doctor_id', doc.id)
           .in('status', ['waiting', 'in-progress'])
-          .gte('created_at', new Date().toISOString().split('T')[0]);
-        return { ...doc, queueCount: count || 0 };
+          .gte('created_at', today)
+          .order('queue_number', { ascending: true });
+
+        const myAppt = myAppts?.find(a => a.doctor_id === doc.id);
+        const inProgress = allAppts?.find(a => a.status === 'in-progress');
+        
+        // Find current serving (moving token)
+        const currentServing = inProgress ? inProgress.queue_number : (allAppts?.length > 0 ? allAppts[0].queue_number : '--');
+        
+        // Find next token they would get
+        const { data: nextQueue } = await supabase.rpc('get_next_queue_number', { p_doctor_id: doc.id });
+
+        return { 
+          ...doc, 
+          queueCount: allAppts?.filter(a => a.status === 'waiting').length || 0,
+          currentServing,
+          nextQueue: nextQueue || 1,
+          myAppointment: myAppt
+        };
       }));
 
       setDoctors(docsWithCounts);
@@ -195,7 +221,7 @@ export default function DoctorSelection() {
 
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    marginBottom: '1rem', fontSize: '0.85rem'
+                    marginBottom: '1rem', fontSize: '0.85rem', flexWrap: 'wrap'
                   }}>
                     <span className="badge badge-available">
                       <FiCheck size={12} style={{ marginRight: 4 }} /> Available
@@ -203,16 +229,35 @@ export default function DoctorSelection() {
                     <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                       <FiUsers size={12} /> {doctor.queueCount} in queue
                     </span>
+                    <span style={{ color: 'var(--primary-light)', display: 'flex', alignItems: 'center', gap: '0.2rem', paddingLeft: '0.2rem', borderLeft: '1px solid var(--border)' }}>
+                      ▶️ Serving: #{doctor.currentServing}
+                    </span>
                   </div>
 
-                  <button
-                    className="btn btn-primary"
-                    style={{ width: '100%' }}
-                    onClick={() => initiateBooking(doctor)}
-                  >
-                    <FiClock size={16} />
-                    Book Appointment
-                  </button>
+                  {doctor.myAppointment ? (
+                    <div style={{ padding: '0.75rem', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 'var(--radius-sm)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Your Token</span>
+                        <strong style={{ fontSize: '1.2rem', color: 'var(--primary-light)' }}>#{doctor.myAppointment.queue_number}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                         <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>📍 GPS Tracking</span>
+                         <span style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'rgba(16,185,129,0.15)', color: 'var(--success)', fontWeight: 600 }}>Active</span>
+                      </div>
+                      <button className="btn btn-primary" style={{ width: '100%', marginTop: '0.75rem', padding: '0.5rem', fontSize: '0.85rem' }} onClick={() => navigate(`/patient/queue/${doctor.myAppointment.id}`)}>
+                        View Live Tracker
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className="btn btn-primary"
+                      style={{ width: '100%' }}
+                      onClick={() => initiateBooking(doctor)}
+                    >
+                      <FiClock size={16} />
+                      Get Token #{doctor.nextQueue}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
