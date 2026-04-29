@@ -35,3 +35,16 @@ class AppointmentCreate(BaseModel):
 
 class AppointmentStatusUpdate(BaseModel):
     status: str  # waiting, in-progress, completed
+
+
+class LocationUpdate(BaseModel):
+    appointment_id: str
+    patient_lat: float
+    patient_lng: float
+
+
+class HospitalSettings(BaseModel):
+    hospital_lat: float
+    hospital_lng: float
+    detection_radius: Optional[float] = 50.0
+

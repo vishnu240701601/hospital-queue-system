@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { FiUser, FiActivity, FiShield } from 'react-icons/fi';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -72,6 +73,48 @@ export default function RegisterPage() {
         {error && <div className="auth-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
+          
+          <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+            <label className="form-label">I am registering as a</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <div 
+                onClick={() => setRole('patient')}
+                style={{
+                  padding: '1rem 0.5rem', border: `2px solid ${role === 'patient' ? 'var(--primary)' : 'var(--border)'}`,
+                  borderRadius: 'var(--radius-md)', background: role === 'patient' ? 'rgba(99,102,241,0.1)' : 'var(--bg-input)',
+                  cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s'
+                }}
+              >
+                <FiUser size={24} color={role === 'patient' ? 'var(--primary-light)' : 'var(--text-secondary)'} style={{ marginBottom: '0.5rem' }} />
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: role === 'patient' ? 'white' : 'var(--text-secondary)' }}>Patient</div>
+              </div>
+
+              <div 
+                onClick={() => setRole('doctor')}
+                style={{
+                  padding: '1rem 0.5rem', border: `2px solid ${role === 'doctor' ? 'var(--accent)' : 'var(--border)'}`,
+                  borderRadius: 'var(--radius-md)', background: role === 'doctor' ? 'rgba(6,182,212,0.1)' : 'var(--bg-input)',
+                  cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s'
+                }}
+              >
+                <FiActivity size={24} color={role === 'doctor' ? 'var(--accent-light)' : 'var(--text-secondary)'} style={{ marginBottom: '0.5rem' }} />
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: role === 'doctor' ? 'white' : 'var(--text-secondary)' }}>Doctor</div>
+              </div>
+
+              <div 
+                onClick={() => setRole('admin')}
+                style={{
+                  padding: '1rem 0.5rem', border: `2px solid ${role === 'admin' ? 'var(--danger)' : 'var(--border)'}`,
+                  borderRadius: 'var(--radius-md)', background: role === 'admin' ? 'rgba(239,68,68,0.1)' : 'var(--bg-input)',
+                  cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s'
+                }}
+              >
+                <FiShield size={24} color={role === 'admin' ? 'var(--danger-light)' : 'var(--text-secondary)'} style={{ marginBottom: '0.5rem' }} />
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: role === 'admin' ? 'white' : 'var(--text-secondary)' }}>Admin</div>
+              </div>
+            </div>
+          </div>
+
           <div className="form-group">
             <label className="form-label" htmlFor="reg-name">Full Name</label>
             <input
@@ -109,20 +152,6 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="reg-role">I am a</label>
-            <select
-              id="reg-role"
-              className="form-select"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-            >
-              <option value="patient">Patient</option>
-              <option value="doctor">Doctor</option>
-              <option value="admin">Admin</option>
-            </select>
           </div>
 
           <button

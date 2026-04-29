@@ -183,3 +183,120 @@ JOIN doctors doc ON a.doctor_id = doc.id
 JOIN profiles doc_profile ON doc.profile_id = doc_profile.id
 JOIN departments d ON a.department_id = d.id
 WHERE a.status = 'completed';
+
+-- =============================================
+-- GPS-Based Smart Queue Demotion System
+-- =============================================
+
+-- Add GPS tracking columns to appointments
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS patient_lat DOUBLE PRECISION;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS patient_lng DOUBLE PRECISION;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS location_tracking BOOLEAN DEFAULT false;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS was_warned BOOLEAN DEFAULT false;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS warned_at TIMESTAMPTZ;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS was_demoted BOOLEAN DEFAULT false;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS demoted_at TIMESTAMPTZ;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS original_queue_number INTEGER;
+
+-- Settings table for hospital GPS coordinates
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS on settings
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+
+-- Anyone can read settings
+CREATE POLICY "Anyone can view settings" ON settings FOR SELECT USING (true);
+
+-- Only admins can modify settings
+CREATE POLICY "Admins can insert settings" ON settings FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+CREATE POLICY "Admins can update settings" ON settings FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+);
+
+-- Seed default hospital coordinates (update with real values)
+INSERT INTO settings (key, value) VALUES ('hospital_lat', '0') ON CONFLICT (key) DO NOTHING;
+INSERT INTO settings (key, value) VALUES ('hospital_lng', '0') ON CONFLICT (key) DO NOTHING;
+INSERT INTO settings (key, value) VALUES ('detection_radius', '50') ON CONFLICT (key) DO NOTHING;
+
+-- Enable Realtime for settings table
+ALTER PUBLICATION supabase_realtime ADD TABLE settings;
+
+-- =============================================
+-- Function: Demote patient in queue
+-- Moves a patient DOWN by `demote_by` positions and shifts
+-- patients in between UP by 1 position.
+-- =============================================
+
+CREATE OR REPLACE FUNCTION demote_patient_queue(
+  p_appointment_id UUID,
+  p_demote_by INTEGER DEFAULT 2
+)
+RETURNS JSON AS $$
+DECLARE
+  v_current_queue INTEGER;
+  v_doctor_id UUID;
+  v_max_queue INTEGER;
+  v_new_queue INTEGER;
+  v_original_queue INTEGER;
+  v_today DATE := CURRENT_DATE;
+BEGIN
+  -- Get the current appointment details
+  SELECT queue_number, doctor_id, COALESCE(original_queue_number, queue_number)
+  INTO v_current_queue, v_doctor_id, v_original_queue
+  FROM appointments
+  WHERE id = p_appointment_id
+    AND status = 'waiting';
+
+  IF v_current_queue IS NULL THEN
+    RETURN json_build_object('success', false, 'message', 'Appointment not found or not in waiting status');
+  END IF;
+
+  -- Get the max queue number for this doctor today
+  SELECT COALESCE(MAX(queue_number), v_current_queue)
+  INTO v_max_queue
+  FROM appointments
+  WHERE doctor_id = v_doctor_id
+    AND status = 'waiting'
+    AND created_at::date = v_today;
+
+  -- Calculate new position (cap at max)
+  v_new_queue := LEAST(v_current_queue + p_demote_by, v_max_queue);
+
+  -- If already at the bottom, nothing to do
+  IF v_new_queue <= v_current_queue THEN
+    RETURN json_build_object('success', false, 'message', 'Patient is already at the bottom of the queue');
+  END IF;
+
+  -- Move patients between old and new position UP by 1
+  UPDATE appointments
+  SET queue_number = queue_number - 1,
+      updated_at = NOW()
+  WHERE doctor_id = v_doctor_id
+    AND status = 'waiting'
+    AND created_at::date = v_today
+    AND queue_number > v_current_queue
+    AND queue_number <= v_new_queue;
+
+  -- Move the demoted patient to new position
+  UPDATE appointments
+  SET queue_number = v_new_queue,
+      was_demoted = true,
+      demoted_at = NOW(),
+      original_queue_number = v_original_queue,
+      updated_at = NOW()
+  WHERE id = p_appointment_id;
+
+  RETURN json_build_object(
+    'success', true,
+    'old_position', v_current_queue,
+    'new_position', v_new_queue,
+    'message', 'Patient demoted from #' || v_current_queue || ' to #' || v_new_queue
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

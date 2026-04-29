@@ -28,6 +28,7 @@ export default function Navbar() {
       { to: '/admin/departments', label: 'Departments' },
       { to: '/admin/doctors', label: 'Doctors' },
       { to: '/admin/appointments', label: 'Appointments' },
+      { to: '/admin/settings', label: 'GPS Settings' },
     ],
   };
 

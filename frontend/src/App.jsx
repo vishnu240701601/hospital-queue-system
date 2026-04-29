@@ -23,6 +23,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminDepartments from './pages/admin/AdminDepartments';
 import AdminDoctors from './pages/admin/AdminDoctors';
 import AdminAppointments from './pages/admin/AdminAppointments';
+import AdminSettings from './pages/admin/AdminSettings';
 
 function AppRoutes() {
   const { user, profile, loading } = useAuth();
@@ -111,6 +112,11 @@ function AppRoutes() {
       <Route path="/admin/appointments" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminAppointments />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/settings" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminSettings />
         </ProtectedRoute>
       } />
 

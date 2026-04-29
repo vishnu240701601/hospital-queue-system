@@ -1,11 +1,30 @@
 import { Link } from 'react-router-dom';
-import { FiArrowRight, FiShield, FiClock, FiSmartphone } from 'react-icons/fi';
+import { FiArrowRight, FiShield, FiClock, FiSmartphone, FiMapPin, FiPhone, FiMail } from 'react-icons/fi';
 
 export default function LandingPage() {
+  const scrollTo = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div style={{ minHeight: '100vh' }}>
+      {/* Dynamic Navbar placed at the top */}
+      <nav style={{
+        position: 'fixed', top: 0, left: 0, right: 0,
+        height: '60px', background: 'transparent',
+        display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+        padding: '0 2rem', zIndex: 1000
+      }}>
+        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+          <button style={{background:'transparent', color:'var(--text-primary)', fontWeight: 600, fontSize: '1rem', cursor: 'pointer', border: 'none'}} onClick={() => scrollTo('home')}>Home</button>
+          <button style={{background:'transparent', color:'var(--text-primary)', fontWeight: 600, fontSize: '1rem', cursor: 'pointer', border: 'none'}} onClick={() => scrollTo('about')}>About</button>
+          <button style={{background:'transparent', color:'var(--text-primary)', fontWeight: 600, fontSize: '1rem', cursor: 'pointer', border: 'none'}} onClick={() => scrollTo('contact')}>Contact</button>
+        </div>
+      </nav>
+
       {/* Hero */}
-      <div style={{
+      <div id="home" style={{
         minHeight: '100vh',
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
@@ -100,6 +119,67 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
+
+      {/* About Section */}
+      <section id="about" style={{
+        padding: '5rem 2rem', 
+        background: 'var(--bg-secondary)', 
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center'
+      }}>
+        <div style={{ maxWidth: '800px' }}>
+          <h2 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '1.5rem', color: 'var(--text-primary)' }}>
+            About MediQueue Hospital
+          </h2>
+          <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: '2rem' }}>
+            MediQueue Hospital is built on the philosophy that a patient's healing journey begins the moment they arrive. We eliminated the stressful crowded waiting rooms and replaced them with an intelligent, emotionally-aware queueing system. By automating the triage and queuing logistics, we let doctors focus entirely on what matters most: saving lives and improving wellbeing.
+          </p>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section id="contact" style={{
+        padding: '5rem 2rem', 
+        background: 'var(--bg-primary)', 
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center'
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '3rem', maxWidth: '700px' }}>
+          <h2 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '1rem' }}>Contact Us</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>Reach out to our administrative desk for general inquiries, emergency contacts, or feedback.</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem', width: '100%', maxWidth: '900px' }}>
+          
+          <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '2rem' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>
+              <FiMapPin color="var(--primary-light)" />
+            </div>
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>Our Address</h3>
+            <p style={{ color: 'var(--text-secondary)' }}>123 Medical Innovation Drive<br/>Health City, HC 90210<br/>United States</p>
+          </div>
+
+          <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '2rem' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>
+              <FiPhone color="var(--accent-light)" />
+            </div>
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>Phone Number</h3>
+            <p style={{ color: 'var(--text-secondary)' }}>Emergency: 911<br/>General: +1 (555) 123-4567<br/>Appointments: +1 (555) 987-6543</p>
+          </div>
+
+          <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '2rem' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>
+              <FiMail color="var(--success-light)" />
+            </div>
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>Email Us</h3>
+            <p style={{ color: 'var(--text-secondary)' }}>support@mediqueue.org<br/>admin@mediqueue.org<br/>careers@mediqueue.org</p>
+          </div>
+
+        </div>
+      </section>
     </div>
   );
 }

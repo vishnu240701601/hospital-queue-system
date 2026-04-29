@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { requestLocation } from '../../lib/gps';
 import Navbar from '../../components/Navbar';
-import { FiCheck, FiClock, FiUser, FiUsers, FiX } from 'react-icons/fi';
+import { FiCheck, FiClock, FiUser, FiUsers, FiX, FiMapPin } from 'react-icons/fi';
 
 export default function DoctorSelection() {
   const { departmentId } = useParams();
@@ -15,6 +16,7 @@ export default function DoctorSelection() {
   const [confirmDoctor, setConfirmDoctor] = useState(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState('');
+  const [locationDenied, setLocationDenied] = useState(false);
 
   useEffect(() => {
     fetchDepartmentAndDoctors();
@@ -94,6 +96,16 @@ export default function DoctorSelection() {
     setBookingLoading(true);
     setBookingError('');
     try {
+      // Request GPS location before booking
+      let patientLocation = null;
+      try {
+        patientLocation = await requestLocation();
+      } catch (locErr) {
+        setLocationDenied(true);
+        setBookingLoading(false);
+        return;
+      }
+
       const doctor = confirmDoctor;
       // Check if patient already has a waiting appointment with this doctor today
       const today = new Date().toISOString().split('T')[0];
@@ -118,7 +130,7 @@ export default function DoctorSelection() {
 
       const queueNumber = queueData || 1;
 
-      // Create appointment
+      // Create appointment with GPS coordinates
       const { data, error } = await supabase
         .from('appointments')
         .insert({
@@ -127,6 +139,9 @@ export default function DoctorSelection() {
           department_id: departmentId,
           status: 'waiting',
           queue_number: queueNumber,
+          patient_lat: patientLocation.lat,
+          patient_lng: patientLocation.lng,
+          location_tracking: true,
         })
         .select();
 
@@ -250,6 +265,29 @@ export default function DoctorSelection() {
               <button disabled={bookingLoading} className="btn btn-primary" onClick={handleConfirmBooking}>
                 {bookingLoading ? 'Booking...' : 'Confirm Appointment'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Location denied overlay */}
+      {locationDenied && (
+        <div className="modal-overlay" style={{ zIndex: 2000 }}>
+          <div className="modal" style={{ maxWidth: 420, textAlign: 'center' }}>
+            <div style={{
+              width: 80, height: 80, borderRadius: '50%', margin: '0 auto 1.5rem',
+              background: 'rgba(239, 68, 68, 0.15)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <FiMapPin size={36} color="var(--danger-light)" />
+            </div>
+            <h2 style={{ fontSize: '1.3rem', marginBottom: '0.75rem' }}>Location Access Required</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+              Location access is required for smart queue management. Your GPS position is tracked to ensure you stay near the hospital during your appointment. Please enable GPS in your browser settings and try again.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+              <button className="btn btn-secondary" onClick={() => setLocationDenied(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => { setLocationDenied(false); handleConfirmBooking(); }}>Try Again</button>
             </div>
           </div>
         </div>

@@ -1,14 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { startLocationTracking } from '../../lib/gps';
 import Navbar from '../../components/Navbar';
-import { FiClock, FiCheckCircle, FiActivity, FiUser, FiCalendar, FiArrowLeft } from 'react-icons/fi';
+import { FiClock, FiCheckCircle, FiActivity, FiUser, FiCalendar, FiArrowLeft, FiMapPin, FiAlertTriangle, FiNavigation } from 'react-icons/fi';
 
 export default function PatientAppointmentTracker() {
   const { appointmentId } = useParams();
   const navigate = useNavigate();
   const [appointment, setAppointment] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // GPS tracking state
+  const [gpsStatus, setGpsStatus] = useState('initializing'); // within_range, warned, grace_period, demoted, error, gps_error, not_configured, not_tracking
+  const [distance, setDistance] = useState(0);
+  const [wasDemoted, setWasDemoted] = useState(false);
+  const [graceSeconds, setGraceSeconds] = useState(60);
+  const [demotionInfo, setDemotionInfo] = useState(null);
+  const [gpsMessage, setGpsMessage] = useState('Initializing GPS tracking...');
+  const cleanupRef = useRef(null);
 
   useEffect(() => {
     fetchAppointmentDetails();
@@ -33,6 +43,48 @@ export default function PatientAppointmentTracker() {
       supabase.removeChannel(channel);
     };
   }, [appointmentId]);
+
+  // Start GPS tracking when appointment loads
+  useEffect(() => {
+    if (!appointment || appointment.status !== 'waiting') return;
+
+    try {
+      const cleanup = startLocationTracking(appointmentId, handleGpsUpdate);
+      cleanupRef.current = cleanup;
+    } catch (err) {
+      console.error('Failed to start GPS tracking:', err);
+      setGpsStatus('error');
+      setGpsMessage('Failed to initialize GPS tracking.');
+    }
+
+    return () => {
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
+    };
+  }, [appointment?.id, appointment?.status]);
+
+  function handleGpsUpdate(result) {
+    if (!result) return;
+    setDistance(result.distance || 0);
+    setGpsStatus(result.status || 'error');
+    setGpsMessage(result.message || '');
+
+    if (result.status === 'grace_period') {
+      setGraceSeconds(result.grace_remaining || 0);
+    }
+
+    if (result.demoted) {
+      setWasDemoted(true);
+      setDemotionInfo({
+        oldPosition: result.old_position,
+        newPosition: result.new_position,
+      });
+      // Refresh appointment data to get updated queue number
+      fetchAppointmentDetails();
+    }
+  }
 
   async function fetchAppointmentDetails() {
     try {
@@ -65,12 +117,163 @@ export default function PatientAppointmentTracker() {
         data.estimatedWait = (count || 0) * 10;
       }
 
+      // Check existing demotion state
+      if (data.was_demoted && data.original_queue_number) {
+        setWasDemoted(true);
+        setDemotionInfo({
+          oldPosition: data.original_queue_number,
+          newPosition: data.queue_number,
+        });
+      }
+
       setAppointment(data);
     } catch (err) {
       console.error('Error fetching appointment:', err);
     } finally {
       setLoading(false);
     }
+  }
+
+  function getGpsStatusCard() {
+    if (!appointment || appointment.status !== 'waiting') return null;
+
+    const statusStyles = {
+      initializing: {
+        background: 'rgba(99, 102, 241, 0.1)',
+        border: '1px solid rgba(99, 102, 241, 0.3)',
+        iconColor: 'var(--primary-light)',
+        icon: <FiNavigation size={20} />,
+      },
+      within_range: {
+        background: 'rgba(16, 185, 129, 0.1)',
+        border: '1px solid rgba(16, 185, 129, 0.3)',
+        iconColor: 'var(--success-light)',
+        icon: <FiMapPin size={20} />,
+      },
+      warned: {
+        background: 'rgba(245, 158, 11, 0.15)',
+        border: '1px solid rgba(245, 158, 11, 0.4)',
+        iconColor: 'var(--warning-light)',
+        icon: <FiAlertTriangle size={20} />,
+      },
+      grace_period: {
+        background: 'rgba(239, 68, 68, 0.15)',
+        border: '1px solid rgba(239, 68, 68, 0.5)',
+        iconColor: 'var(--danger-light)',
+        icon: <FiAlertTriangle size={20} />,
+      },
+      demoted: {
+        background: 'rgba(239, 68, 68, 0.2)',
+        border: '1px solid rgba(239, 68, 68, 0.5)',
+        iconColor: 'var(--danger-light)',
+        icon: <FiAlertTriangle size={20} />,
+      },
+      error: {
+        background: 'rgba(239, 68, 68, 0.1)',
+        border: '1px solid rgba(239, 68, 68, 0.3)',
+        iconColor: 'var(--danger-light)',
+        icon: <FiAlertTriangle size={20} />,
+      },
+      gps_error: {
+        background: 'rgba(245, 158, 11, 0.1)',
+        border: '1px solid rgba(245, 158, 11, 0.3)',
+        iconColor: 'var(--warning-light)',
+        icon: <FiAlertTriangle size={20} />,
+      },
+      not_configured: {
+        background: 'rgba(99, 102, 241, 0.1)',
+        border: '1px solid rgba(99, 102, 241, 0.3)',
+        iconColor: 'var(--primary-light)',
+        icon: <FiMapPin size={20} />,
+      },
+      not_tracking: {
+        background: 'rgba(100, 116, 139, 0.1)',
+        border: '1px solid rgba(100, 116, 139, 0.3)',
+        iconColor: 'var(--text-muted)',
+        icon: <FiMapPin size={20} />,
+      },
+    };
+
+    const style = statusStyles[gpsStatus] || statusStyles.error;
+
+    return (
+      <div
+        className="glass-card gps-status-card"
+        style={{
+          marginTop: '1.5rem',
+          padding: '1.25rem',
+          background: style.background,
+          border: style.border,
+          animation: gpsStatus === 'grace_period' ? 'gps-blink 1s ease-in-out infinite' : undefined,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 'var(--radius-md)',
+              background: style.background,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: style.iconColor,
+              flexShrink: 0,
+            }}
+          >
+            {style.icon}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: style.iconColor,
+              marginBottom: '0.25rem',
+            }}>
+              {gpsStatus === 'within_range' && '📍 Within Range'}
+              {gpsStatus === 'warned' && '⚠️ Moving Away'}
+              {gpsStatus === 'grace_period' && '🚨 Return Now!'}
+              {gpsStatus === 'demoted' && '❌ Token Moved'}
+              {gpsStatus === 'initializing' && '📡 Connecting GPS...'}
+              {gpsStatus === 'error' && '❌ GPS Error'}
+              {gpsStatus === 'gps_error' && '📡 Signal Lost'}
+              {gpsStatus === 'not_configured' && '⚙️ Not Configured'}
+              {gpsStatus === 'not_tracking' && '⏸️ Not Tracking'}
+            </div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              {gpsMessage}
+            </p>
+            {gpsStatus === 'grace_period' && (
+              <div style={{
+                marginTop: '0.5rem',
+                fontSize: '1.5rem',
+                fontWeight: 800,
+                color: 'var(--danger-light)',
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {graceSeconds}s remaining
+              </div>
+            )}
+          </div>
+          {distance > 0 && (
+            <div style={{
+              textAlign: 'center',
+              padding: '0.5rem 0.75rem',
+              background: 'rgba(0,0,0,0.2)',
+              borderRadius: 'var(--radius-sm)',
+              flexShrink: 0,
+            }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: style.iconColor }}>
+                {distance}m
+              </div>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>distance</div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -131,6 +334,24 @@ export default function PatientAppointmentTracker() {
                   <FiClock /> ~{appointment.estimatedWait} min wait
                 </div>
               </div>
+
+              {/* Demotion notice */}
+              {wasDemoted && demotionInfo && (
+                <div style={{
+                  marginTop: '1rem',
+                  padding: '1rem 1.25rem',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: 'var(--radius-md)',
+                  textAlign: 'center',
+                }}>
+                  <FiAlertTriangle style={{ color: 'var(--danger-light)', marginBottom: '0.25rem' }} size={18} />
+                  <p style={{ fontSize: '0.85rem', color: 'var(--danger-light)' }}>
+                    Your token was moved from <strong>#{demotionInfo.oldPosition}</strong> to{' '}
+                    <strong>#{demotionInfo.newPosition}</strong> because you left the hospital area.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -191,6 +412,9 @@ export default function PatientAppointmentTracker() {
               </button>
             </div>
           )}
+
+          {/* GPS Status Card — only shows when waiting */}
+          {getGpsStatusCard()}
 
           {/* Info Card Always show at bottom */}
           {appointment.status !== 'completed' && (

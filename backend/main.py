@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import FRONTEND_URL
-from app.routes import departments, doctors, appointments, admin
+from app.routes import departments, doctors, appointments, admin, gps
 
 app = FastAPI(
     title="MediQueue API",
@@ -30,6 +30,7 @@ app.include_router(departments.router)
 app.include_router(doctors.router)
 app.include_router(appointments.router)
 app.include_router(admin.router)
+app.include_router(gps.router)
 
 
 @app.get("/")
