@@ -21,13 +21,14 @@ export default function DoctorSelection() {
   useEffect(() => {
     fetchDepartmentAndDoctors();
 
+    // Unique channel name per department for live queue counts
     const channel = supabase
-      .channel('doctor-updates')
+      .channel(`doctor-queue-counts-${departmentId}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'appointments' },
         () => {
-          // Silent refresh
+          // Re-fetch queue counts live when any appointment changes
           fetchDepartmentAndDoctors(false);
         }
       )

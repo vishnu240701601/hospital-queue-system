@@ -21,9 +21,9 @@ export default function DoctorDashboard() {
   useEffect(() => {
     if (!doctorRecord) return;
 
-    // Subscribe to real-time appointment updates
+    // Subscribe to real-time appointment updates — unique channel per doctor
     const channel = supabase
-      .channel('doctor-queue')
+      .channel(`doctor-dashboard-${doctorRecord.id}`)
       .on(
         'postgres_changes',
         {

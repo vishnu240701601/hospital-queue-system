@@ -23,19 +23,35 @@ export default function PatientAppointmentTracker() {
   const cleanupRef = useRef(null);
   const countdownRef = useRef(null);
 
-  // Fetch appointment details
+  // Fetch appointment details + subscribe to ALL changes for same doctor
   useEffect(() => {
-    fetchAppointmentDetails();
+    let doctorChannel = null;
 
-    const channel = supabase
-      .channel(`appointment-${appointmentId}`)
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'appointments',
-        filter: `id=eq.${appointmentId}`,
-      }, () => fetchAppointmentDetails())
-      .subscribe();
+    async function init() {
+      const appt = await fetchAppointmentDetails();
+      if (!appt?.doctor_id) return;
 
-    return () => supabase.removeChannel(channel);
+      // Subscribe to ALL appointment changes for this doctor
+      // This ensures queue position updates when OTHER patients book/complete
+      doctorChannel = supabase
+        .channel(`queue-realtime-${appointmentId}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'appointments',
+          filter: `doctor_id=eq.${appt.doctor_id}`,
+        }, () => {
+          // Re-fetch on ANY change: new booking, status change, completion
+          fetchAppointmentDetails();
+        })
+        .subscribe();
+    }
+
+    init();
+
+    return () => {
+      if (doctorChannel) supabase.removeChannel(doctorChannel);
+    };
   }, [appointmentId]);
 
   // Start GPS tracking when appointment is waiting
@@ -112,15 +128,27 @@ export default function PatientAppointmentTracker() {
       if (error) throw error;
 
       if (data.status === 'waiting') {
-        const { count } = await supabase
+        // Count how many waiting patients are AHEAD (lower queue number)
+        const { count: aheadCount } = await supabase
           .from('appointments')
           .select('id', { count: 'exact', head: true })
           .eq('doctor_id', data.doctor_id)
           .eq('status', 'waiting')
           .lt('queue_number', data.queue_number)
           .gte('created_at', today);
-        data.position = (count || 0) + 1;
-        data.estimatedWait = (count || 0) * 10;
+
+        // Count total waiting for this doctor today
+        const { count: totalCount } = await supabase
+          .from('appointments')
+          .select('id', { count: 'exact', head: true })
+          .eq('doctor_id', data.doctor_id)
+          .in('status', ['waiting', 'in-progress'])
+          .gte('created_at', today);
+
+        data.position = (aheadCount || 0) + 1;
+        data.aheadCount = aheadCount || 0;
+        data.totalWaiting = totalCount || 0;
+        data.estimatedWait = (aheadCount || 0) * 10;
       }
 
       if (data.was_demoted && data.original_queue_number) {
@@ -129,8 +157,10 @@ export default function PatientAppointmentTracker() {
       }
 
       setAppointment(data);
+      return data;
     } catch (err) {
       console.error('Error fetching appointment:', err);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -252,11 +282,28 @@ export default function PatientAppointmentTracker() {
           {appointment.status === 'waiting' && (
             <div className="glass-card" style={{ textAlign: 'center', padding: '3rem 2rem' }}>
               <div style={{ marginBottom: '2rem' }}>
-                <span className="badge badge-waiting" style={{ padding: '0.5rem 1rem', fontSize: '1rem', marginBottom: '1rem' }}>
-                  🟡 Waiting in Queue
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <span className="badge badge-waiting" style={{ padding: '0.5rem 1rem', fontSize: '1rem' }}>
+                    🟡 Waiting in Queue
+                  </span>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                    padding: '0.35rem 0.75rem', borderRadius: 'var(--radius-full)',
+                    background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)',
+                    fontSize: '0.7rem', fontWeight: 700, color: 'var(--success-light)',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                  }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--success)', animation: 'pulse 2s ease-in-out infinite' }} />
+                    Live
+                  </span>
+                </div>
                 <h1 style={{ fontSize: '2rem', marginTop: '1rem' }}>Token: #{appointment.queue_number}</h1>
-                <p style={{ color: 'var(--text-secondary)' }}>You are currently waiting to see the doctor.</p>
+                <p style={{ color: 'var(--text-secondary)' }}>
+                  {appointment.aheadCount > 0
+                    ? `${appointment.aheadCount} patient${appointment.aheadCount > 1 ? 's' : ''} ahead of you`
+                    : "You're next!"}
+                  {appointment.totalWaiting > 1 && ` • ${appointment.totalWaiting} total in queue`}
+                </p>
               </div>
 
               <div className="queue-position" style={{ margin: '0 auto 2rem', width: '200px', height: '200px', border: '4px solid var(--primary)' }}>
