@@ -87,7 +87,24 @@ export default function DoctorSelection() {
     }
   }
 
-  function initiateBooking(doctor) {
+  async function initiateBooking(doctor) {
+    // Check if patient already has a waiting appointment with this doctor today
+    const today = new Date().toISOString().split('T')[0];
+    const { data: existing } = await supabase
+      .from('appointments')
+      .select('id, queue_number')
+      .eq('patient_id', profile.id)
+      .eq('doctor_id', doctor.id)
+      .in('status', ['waiting', 'in-progress'])
+      .gte('created_at', today)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      // Instantly redirect to their existing token tracker
+      navigate(`/patient/queue/${existing[0].id}`);
+      return;
+    }
+
     setConfirmDoctor(doctor);
     setBookingError('');
   }
@@ -108,22 +125,6 @@ export default function DoctorSelection() {
       }
 
       const doctor = confirmDoctor;
-      // Check if patient already has a waiting appointment with this doctor today
-      const today = new Date().toISOString().split('T')[0];
-      const { data: existing } = await supabase
-        .from('appointments')
-        .select('id')
-        .eq('patient_id', profile.id)
-        .eq('doctor_id', doctor.id)
-        .in('status', ['waiting', 'in-progress'])
-        .gte('created_at', today)
-        .limit(1);
-
-      if (existing && existing.length > 0) {
-        setBookingError('You already have an active appointment with this doctor today.');
-        setBookingLoading(false);
-        return;
-      }
 
       // Create appointment atomically with GPS coordinates
       const { data, error } = await supabase

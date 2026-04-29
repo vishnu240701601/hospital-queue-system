@@ -86,12 +86,8 @@ CREATE POLICY "Admins can delete doctors" ON doctors FOR DELETE USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
 );
 
--- Appointments: patients see own, doctors see assigned, admins see all
-CREATE POLICY "Patients can view own appointments" ON appointments FOR SELECT USING (
-  patient_id = auth.uid()
-  OR EXISTS (SELECT 1 FROM doctors WHERE doctors.id = appointments.doctor_id AND doctors.profile_id = auth.uid())
-  OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
-);
+-- Appointments: everyone can read (needed for accurate live queue counts), patients insert own, doctors/admins update
+CREATE POLICY "Authenticated users can view all appointments" ON appointments FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Patients can insert appointments" ON appointments FOR INSERT WITH CHECK (
   patient_id = auth.uid()
 );
